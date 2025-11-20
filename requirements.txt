@@ -1,0 +1,6 @@
+customtkinter
+requests
+pypdf
+python-docx
+odfpy
+packaging
