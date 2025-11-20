@@ -1,0 +1,9 @@
+customtkinter
+pypdf
+python-docx
+odfpy==1.4.1
+sumy
+nltk
+spacy
+llama-cpp-python
+packaging

@@ -1,0 +1,32 @@
+Custom Non-Commercial License v1.0 (Based on Apache License 2.0)
+
+Copyright 2025 Dawid Chomicki, Denis Pylypenko, Krzysztof Rudzki
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License
+and the following additional terms and conditions:
+
+You may use, reproduce, modify, and distribute this work, provided that:
+
+1. You do **not** use the work, or any derivative works, for commercial purposes.
+   - "Commercial purposes" include but are not limited to:
+     - Selling the work or any derivative.
+     - Including the work in a product or service that is sold.
+     - Using the work in a product or service used to generate revenue directly or indirectly.
+
+2. Use in personal, educational, academic, or internal company projects **is allowed**, 
+   provided it is not sold or monetized.
+
+3. All copies or substantial portions of the Software must retain the above copyright 
+   notice, this list of conditions, and the following disclaimer.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, 
+INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR 
+PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE 
+FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR 
+OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER 
+DEALINGS IN THE SOFTWARE.
+
+You may obtain a copy of the original Apache License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
