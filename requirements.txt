@@ -1,6 +1,6 @@
 customtkinter
-requests
-pypdf
+pdfplumber
 python-docx
 odfpy
 packaging
+llama-cpp-python

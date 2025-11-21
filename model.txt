@@ -1,0 +1,4 @@
+https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/tree/main
+
+PLIK:
+qwen2.5-1.5b-instruct-q4_k_m.gguf
