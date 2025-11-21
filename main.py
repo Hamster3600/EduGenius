@@ -459,7 +459,7 @@ class MainAppView(ctk.CTkFrame):
         self.tabview.pack(pady=20, padx=20, fill="both", expand=True)
 
         self.tab_summary = self.tabview.add("1. Podsumowanie")
-        self.tab_flashcards = self.tabview.add("2. Fiszki (Tryb Nauki)") 
+        self.tab_flashcards = self.tabview.add("2. Fiszki (Tryb Nauki)")
 
         # Podsumowanie UI
         # Używamy domyślnej czcionki dla ciała tekstu
@@ -467,11 +467,13 @@ class MainAppView(ctk.CTkFrame):
         self.summary_textbox.pack(fill="both", expand=True, padx=10, pady=10)
         self.save_btn = ctk.CTkButton(self.tab_summary, text="Pobierz pełną notatkę (.txt)", command=self.controller.save_to_txt)
         self.save_btn.pack(pady=10)
-        
+        self.back_to_upload_btn = ctk.CTkButton(self.tab_summary, text="Powrót do pierwszego widoku", command=lambda: self.controller.show_frame(UploadView))
+        self.back_to_upload_btn.pack(pady=10)
+
         # FISZKI UI
         self.card_frame = ctk.CTkFrame(self.tab_flashcards, fg_color="#1f538d", corner_radius=30, width=600, height=400)
         self.card_frame.pack(pady=40, padx=40, fill="both", expand=True)
-        self.card_frame.bind("<Button-1>", self.flip_card) 
+        self.card_frame.bind("<Button-1>", self.flip_card)
 
         self.card_label = ctk.CTkLabel(self.card_frame, text="Wgraj plik, aby wygenerować fiszki", font=("Roboto", 24), wraplength=500, text_color="white")
         self.card_label.place(relx=0.5, rely=0.5, anchor="center")
@@ -486,9 +488,13 @@ class MainAppView(ctk.CTkFrame):
         self.btn_know.pack(side="left", padx=20)
         self.btn_dont_know = ctk.CTkButton(self.btns_frame, text="Nie wiem :(", fg_color="red", hover_color="darkred", command=lambda: self.answer_card(False))
         self.btn_dont_know.pack(side="right", padx=20)
-        
+
         self.result_label = ctk.CTkLabel(self.tab_flashcards, text="", font=("Roboto", 16))
         self.result_label.pack(pady=10)
+
+        # Przycisk powrotu do pierwszego widoku
+        self.back_btn = ctk.CTkButton(self, text="Powrót do pierwszego widoku", command=lambda: self.controller.show_frame(UploadView))
+        self.back_btn.pack(pady=10)
 
     def update_summary(self, markdown_text):
         """
@@ -552,10 +558,12 @@ class MainAppView(ctk.CTkFrame):
             self.card_label.configure(text=card['answer'])
             self.hint_label.configure(text="Odpowiedź: (Kliknij, aby wrócić do pytania)")
             self.controller.is_card_flipped = True
+            self.card_frame.configure(fg_color="gray")
         else:
             self.card_label.configure(text=card['question'])
             self.hint_label.configure(text="Kliknij, aby odkryć")
             self.controller.is_card_flipped = False
+            self.card_frame.configure(fg_color="#1f538d")
 
     def answer_card(self, knew_it):
         # ... (Metoda bez zmian) ...
@@ -590,9 +598,12 @@ class SummaryResultView(ctk.CTkFrame):
 
         self.score_label = ctk.CTkLabel(self.result_frame, text="", font=("Roboto", 20))
         self.score_label.pack(pady=10)
-        
+
         self.restart_btn = ctk.CTkButton(self.result_frame, text="Powrót do głównego widoku", command=self.back_to_main)
         self.restart_btn.pack(pady=30)
+
+        self.upload_btn = ctk.CTkButton(self.result_frame, text="Powrót do pierwszego widoku", command=lambda: self.controller.show_frame(UploadView))
+        self.upload_btn.pack(pady=10)
         
     def tkraise(self, *args, **kwargs):
         self.update_results()
