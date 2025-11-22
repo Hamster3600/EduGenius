@@ -38,6 +38,30 @@ L10N = {
         "lang_select": "Wybierz język pliku:",
         "file_select_btn": "Wybierz plik do analizy\n(.txt, .pdf, .docx, .odt)",
         "loading_text": "Analiza i generowanie notatek...",
+        "loading_phrases": [
+            "Analizuję strukturę pliku...", 
+            "Wyodrębniam kluczowe fragmenty tekstu...",
+            "Przygotowuję kontekst dla modelu LLM...",
+            "Generuję podsumowanie eksperckie...",
+            "Wykonuję analizę semantyczną...",
+            "Wyszukuję definicje i terminy...",
+            "Tworzę listę najważniejszych pojęć...",
+            "Sprawdzam spójność logiczną notatek...",
+            "Opracowuję pytania i luki w tekście...",
+            "Generuję fiszki metodą Cloze Deletion...",
+            "Filtruję mniej istotne dane...",
+            "Optymalizuję notatki do nauki...",
+            "Uruchamiam proces NLP (Natural Language Processing)...",
+            "Wgrywam dane do pamięci podręcznej...",
+            "Przygotowuję interfejs użytkownika...",
+            "Kończę przetwarzanie... Ostatnie szlify...",
+            "Kalibruję algorytmy...",
+            "Analizuję czasowniki i rzeczowniki (SpaCy)...",
+            "Sortuję fiszki według priorytetu...",
+            "Czekam na odpowiedź z lokalnego modelu...",
+            "Porządkuję dane wyjściowe...",
+            "Ustawiam tabulatory...",
+        ],
         "tab_summary": "1. Podsumowanie",
         "tab_flashcards": "2. Fiszki (Tryb Nauki)",
         "save_btn": "Pobierz pełną notatkę (.txt)",
@@ -71,6 +95,30 @@ L10N = {
         "lang_select": "Select file language:",
         "file_select_btn": "Select file for analysis\n(.txt, .pdf, .docx, .odt)",
         "loading_text": "Analyzing and generating notes...",
+        "loading_phrases": [
+            "Analyzing file structure...",
+            "Extracting key text fragments...",
+            "Preparing context for the LLM model...",
+            "Generating expert summary...",
+            "Performing semantic analysis...",
+            "Searching for definitions and terms...",
+            "Creating a list of most important concepts...",
+            "Checking the logical consistency of notes...",
+            "Developing questions and cloze deletions...",
+            "Generating flashcards using Cloze Deletion...",
+            "Filtering less essential data...",
+            "Optimizing notes for study...",
+            "Running NLP (Natural Language Processing) process...",
+            "Loading data to cache...",
+            "Preparing user interface...",
+            "Finalizing processing... Last touches...",
+            "Calibrating algorithms...",
+            "Analyzing verbs and nouns (SpaCy)...",
+            "Sorting flashcards by priority...",
+            "Waiting for response from the local model...",
+            "Arranging output data...",
+            "Setting up tabs...",
+        ],
         "tab_summary": "1. Summary",
         "tab_flashcards": "2. Flashcards (Study Mode)",
         "save_btn": "Download full note (.txt)",
@@ -86,7 +134,7 @@ L10N = {
         "result_no_answers": "No answers provided.",
         "result_score": "You remembered: {known} out of {total} ({percent:.1f}%)",
         "restart_btn": "Back to study mode",
-        "error_file_read": "Could not read the file or it is empty.",
+        "error_file_read": "Could not read the file or is empty.",
         "error_critical": "A critical error occurred during analysis: {error}",
         "success_save": "Success",
         "success_save_msg": "Note saved to .txt file!",
@@ -407,6 +455,18 @@ class EduApp(ctk.CTk):
                     frame.update_language()
         
     def show_frame(self, container_class):
+        # 1. Znajdź obecną ramkę i ją ukryj
+        old_frame = None
+        for frame in self.frames.values():
+            if frame.winfo_ismapped(): 
+                old_frame = frame
+                break
+        
+        # 2. Jeśli opuszczamy LoadingView, zatrzymaj animację.
+        if old_frame and isinstance(old_frame, LoadingView):
+             old_frame.on_hide()
+        
+        # 3. Pokaż nową ramkę (tkraise automatycznie wywoła tkraise w LoadingView)
         frame = self.frames[container_class]
         frame.tkraise()
         
@@ -610,19 +670,71 @@ class LoadingView(ctk.CTkFrame):
     def __init__(self, parent, controller):
         super().__init__(parent)
         self.controller = controller
+        
+        self.animation_job = None 
+        # Zwiększono interwał z 1500ms do 2500ms
+        self.phrase_interval_ms = 2500 
+        
+        # Nowe zmienne do zarządzania kolejką fraz
+        self.phrases_queue = []
+        self.all_phrases = []
+
         self.center_frame = ctk.CTkFrame(self, fg_color="transparent")
         self.center_frame.place(relx=0.5, rely=0.5, anchor="center")
+        
         self.label = ctk.CTkLabel(self.center_frame, text="", font=("Roboto", 20))
         self.label.pack(pady=20)
-        self.progress = ctk.CTkProgressBar(self.center_frame, width=300, mode="indeterminate")
-        self.progress.pack(pady=10)
-        self.progress.start()
+        
+        # Wstępne załadowanie fraz
         self.update_language()
 
     def update_language(self):
-        lang = self.controller.language
-        texts = L10N[lang]
-        self.label.configure(text=texts["loading_text"])
+        """Ładuje frazy dla nowego języka i czyści kolejkę."""
+        texts = L10N[self.controller.language]
+        new_phrases = texts.get("loading_phrases", [texts["loading_text"]])
+        
+        # Ładujemy wszystkie frazy i czyścimy kolejkę
+        self.all_phrases = list(new_phrases)
+        self.phrases_queue = [] 
+
+    def start_loading_animation(self):
+        """Rozpoczyna cykliczną zmianę fraz ładowania, wykorzystując wszystkie frazy z listy, zanim się powtórzą."""
+        texts = L10N[self.controller.language]
+
+        if not self.phrases_queue:
+            # Jeśli kolejka jest pusta, resetujemy ją, mieszając frazy.
+            if self.all_phrases:
+                self.phrases_queue = list(self.all_phrases)
+            else:
+                # Fallback, jeśli lista fraz jest pusta (użycie domyślnego komunikatu)
+                self.phrases_queue = [texts["loading_text"]]
+                
+            random.shuffle(self.phrases_queue)
+            
+        # Pobieramy pierwszą frazę z kolejki i ją usuwamy
+        new_phrase = self.phrases_queue.pop(0)
+        
+        self.label.configure(text=new_phrase)
+        
+        # Zaplanowanie kolejnej zmiany po określonym interwale
+        self.animation_job = self.after(self.phrase_interval_ms, self.start_loading_animation)
+
+    def stop_loading_animation(self):
+        """Zatrzymuje cykliczną zmianę fraz ładowania."""
+        if self.animation_job:
+            self.after_cancel(self.animation_job)
+            self.animation_job = None
+            
+    def tkraise(self, *args, **kwargs):
+        """Uruchamia animację po wyświetleniu widoku."""
+        # Zapewnienie, że stary job jest anulowany przed rozpoczęciem nowego
+        self.stop_loading_animation() 
+        self.start_loading_animation()
+        super().tkraise(*args, **kwargs)
+        
+    def on_hide(self):
+        """Zatrzymuje animację, gdy widok jest ukrywany."""
+        self.stop_loading_animation()
 
 
 class MainAppView(ctk.CTkFrame):
