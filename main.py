@@ -42,6 +42,9 @@ SPACY_MODELS = {
 }
 _loaded_spacy_models = {}
 
+# --- ZDEFINIOWANE LIMIT ZNAKÓW DLA OBU PROCESÓW ---
+MAX_CHARS_LIMIT = 10000 
+
 def load_llm():
     """Ładuje globalny model Llama GGUF do pamięci, jeśli nie jest załadowany."""
     global _llama_model
@@ -61,43 +64,56 @@ def load_llm():
         print("Model LLM załadowany pomyślnie.")
     return _llama_model
 
-
+def get_safe_text_fragment(raw_text, max_chars):
+    """Obcina tekst do maksymalnej liczby znaków, ucinając po ostatniej pełnej kropce."""
+    if len(raw_text) <= max_chars:
+        return raw_text
+    
+    truncated = raw_text[:max_chars]
+    
+    # Znajdź ostatnią kropkę, znak zapytania lub wykrzyknik
+    last_sentence_end = max(truncated.rfind('.'), truncated.rfind('?'), truncated.rfind('!'))
+    
+    # Ucinamy tylko jeśli jest blisko końca (np. w ostatnich 10% limitu)
+    if last_sentence_end > max_chars * 0.9: 
+        # Zapewnia, że fragment kończy się na pełnym zdaniu
+        return truncated[:last_sentence_end + 1]
+    else:
+        # Jeśli nie znaleziono kropki blisko końca, po prostu używamy obciętego
+        return truncated
+        
 def generate_llm_summary(raw_text, language):
-    """Generuje podsumowanie za pomocą modelu LLM Z FORMATOWANIEM MARKDOWN."""
+    """Generuje podsumowanie za pomocą modelu LLM. Fragment 1."""
     try:
         llm = load_llm()
     except Exception as e:
         print(f"Błąd ładowania LLM. Aplikacja przejdzie na LSA: {e}")
         return None
 
-    # Bezpieczna granica dla 4096 tokenów w języku polskim.
-    max_chars = 10000 
-    
-    # Dodanie komunikatu ostrzegawczego, jeśli tekst został obcięty
-    if len(raw_text) > max_chars:
-        print(f"Ostrzeżenie: Tekst wejściowy (długość: {len(raw_text)}) został obcięty do pierwszych {max_chars} znaków, aby zmieścić się w oknie kontekstu LLM (4096 tokenów).")
-        raw_text = raw_text[:max_chars]
+    # Bezpieczne obcięcie tekstu wejściowego
+    text_fragment = get_safe_text_fragment(raw_text, MAX_CHARS_LIMIT)
         
-    user_prompt = f"Oto tekst do podsumowania:\n\n---\n{raw_text}" 
+    user_prompt = f"Oto tekst do podsumowania:\n\n---\n{text_fragment}" 
 
-    # UTRZYMANIE SYSTEM PROMPT Z MARKDOWNEM DLA CZYSTEGO ZAPISU DO PLIKU .TXT
+    # Poprawiony Prompt systemowy
     if language == "polish":
         system_prompt = (
-            "Jesteś polskim ekspertem w dziedzinie edukacji. Podsumuj cały tekst, który otrzymasz, "
+            "Jesteś polskim ekspertem w dziedzinie edukacji. Podsumuj ten tekst "
             "w maksymalnie 10 najważniejszych punktach. "
-            "***Używaj numerowanych list Markdown (1., 2., 3., etc.). Użyj znaku '##' dla nagłówka 'Podsumowanie'. "
+            "***Nigdy nie używaj fraz wstępnych takich jak 'Oto podsumowanie', 'PODSUMOWANIE' itp. ZACZNIJ OD RAZU od pierwszego punktu na liście.*** "
+            "Używaj numerowanych list Markdown (1., 2., 3., etc.). "
             "Pogrub KLUCZOWE słowa lub nazwy używając PODWÓJNYCH GWIAZDEK Markdown (**słowo**). "
-            "Odpowiedź MUSI ZAWIERAĆ znaczniki Markdown.***"
+            "Odpowiedź MUSI ZAWIERAĆ znaczniki Markdown i NIGDY nie zawierać tekstu spoza listy. Nie używaj nagłówka."
         )
-        model_name = "Qwen2.5-1.5B-Instruct"
     else:
         system_prompt = (
-            "You are an expert educational assistant. Summarize the entire text you receive into a maximum of 10 key points. "
-            "***Use numbered Markdown lists (1., 2., 3., etc.). Use the '##' sign for the header 'Summary'. "
+            "You are an expert educational assistant. Summarize this text "
+            "into a maximum of 10 key points. "
+            "***Never use introductory phrases like 'Here is the summary' or 'SUMMARY'. START IMMEDIATELY with the first point on the list.*** "
+            "Use numbered Markdown lists (1., 2., 3., etc.). "
             "Bold KEYWORDS or names using DOUBLE ASTERISKS Markdown (**word**). "
-            "The response MUST CONTAIN Markdown markers.***"
+            "The response MUST CONTAIN Markdown markers and NEVER contain text outside the list. Do not use a header."
         )
-        model_name = "Qwen2.5-1.5B-Instruct"
 
     messages = [
         {"role": "system", "content": system_prompt},
@@ -114,13 +130,6 @@ def generate_llm_summary(raw_text, language):
         
         summary = output['choices'][0]['message']['content'].strip()
         
-        # Zapewnienie, że zaczyna się od nagłówka
-        if not summary.startswith('## '):
-             summary = '## Podsumowanie\n\n' + summary
-             
-        # Zapewnienie, że po nagłówku jest pusta linia
-        summary = re.sub(r'(## [^\n]+)([^\n\s])', r'\1\n\n\2', summary)
-
         return summary
         
     except Exception as e:
@@ -145,10 +154,10 @@ def get_spacy_nlp(language):
     return _loaded_spacy_models[language]
 
 def generate_cloze_flashcards(text, language):
-    """Generuje fiszki metodą Cloze Deletion (luki w tekście) za pomocą spaCy."""
-    # Obcinam tekst dla SpaCy do pierwszych 50 000 znaków
-    # To pozwala generować fiszki z większej części dokumentu niż LLM
-    text = text[:50000]
+    """Generuje fiszki metodą Cloze Deletion (luki w tekście) za pomocą spaCy. Ograniczenie do 10000 znaków. FRAGMENT 2"""
+    
+    # Bezpieczne obcięcie tekstu dla SpaCy do 10 000 znaków
+    text_fragment = get_safe_text_fragment(text, MAX_CHARS_LIMIT)
     
     try:
         nlp = get_spacy_nlp(language)
@@ -156,10 +165,9 @@ def generate_cloze_flashcards(text, language):
         print(f"Błąd krytyczny ładowania spaCy: {e}")
         return []
 
-    doc = nlp(text)
+    doc = nlp(text_fragment)
     flashcards = []
     
-    # Używamy tej samej logiki POS (części mowy)
     if language == "polish":
         target_pos = ["NOUN", "PROPN", "ADJ", "VERB"]  
     else: 
@@ -173,7 +181,6 @@ def generate_cloze_flashcards(text, language):
             
         target_word = random.choice(keywords)
         
-        # Próba maskowania z użyciem różnych strategii (uwzględnianie wielkości liter i spójności)
         question = re.sub(r'\b' + re.escape(target_word.text) + r'\b', "______", sent.text, count=1)
         
         if question == sent.text:
@@ -229,6 +236,44 @@ def cleanup_markdown_for_save(text):
     return text.strip()
 
 
+def clean_llm_summary(summary_text, language):
+    """
+    Usuwa wszelkie czatowe i błędy formatowania generowane przez LLM.
+    Zostawia tylko listę punktów i dodaje '## Podsumowanie' na górze.
+    """
+    if not summary_text:
+        return ""
+        
+    # Usuwanie nagłówka '## Podsumowanie' (który model miał nie generować)
+    cleaned = re.sub(r'^\s*#+\s*(Podsumowanie|Summary)\s*\n*', '', summary_text, flags=re.IGNORECASE | re.MULTILINE)
+    
+    # REGEX do usunięcia fraz w stylu "Ograniczono do 10 punktów i oznaczono jako 1.0"
+    chat_phrases_to_remove = [
+        r'Oto\s+najważniejsze\s+informacje\s+o\s+.*:\s*', 
+        r'(Przepływy|Wymiar)\s*:\s*.*[\n\s]*',             
+        r'Ograniczono\s+do\s+10\s+punktów.*',
+        r'Dodatkowe\s+informacje:\s*',
+        r'Zaczynamy\s+od\s+razu\s+od\s+punktów\s*.*',
+        r'\-\s*CustomTkinter:\s*Ograniczono\s+masz\s+czatowe\s+rzeczy\s*', 
+        
+        # --- POPRAWKA: USUWANIE BŁĘDNYCH NAGŁÓWKÓW I SEPARATORÓW, które wystąpiły w ostatnim przypadku ---
+        r'^\s*SUMMARY\s*\n*', 
+        r'^\s*\-{5,}\s*\n*',  
+    ]
+    
+    for phrase in chat_phrases_to_remove:
+        cleaned = re.sub(phrase, '', cleaned, flags=re.IGNORECASE | re.MULTILINE)
+        
+    # Usunięcie nadmiarowych myślników (listy nieuporządkowane, które mogą się pojawić)
+    cleaned = re.sub(r'^\s*\-\s*', '', cleaned, flags=re.MULTILINE)
+    
+    # Oczyszczenie nadmiarowych pustych linii
+    cleaned = re.sub(r'\n{3,}', '\n\n', cleaned)
+        
+    # Wymuszenie nagłówka, którego oczekuje użytkownik
+    header = '## Podsumowanie' if language == 'polish' else '## Summary'
+    return f"{header}\n\n{cleaned}".strip()
+
 class EduApp(ctk.CTk):
     def __init__(self):
         super().__init__()
@@ -241,7 +286,7 @@ class EduApp(ctk.CTk):
 
         # Zmienne stanu
         self.flashcards_data = []
-        self.summary_text = "" # To pole teraz przechowuje tekst z Markdownem
+        self.summary_text = "" 
         self.current_card_index = 0
         self.user_answers = [] 
         self.is_card_flipped = False
@@ -258,7 +303,6 @@ class EduApp(ctk.CTk):
                 nltk.data.find(f'tokenizers/{resource}')
             except LookupError:
                 try:
-                    # Dodano warunek, aby uniknąć zbędnych pobrań po pierwszej próbie
                     if os.getenv('NLTK_DOWNLOAD_ATTEMPT', '0') == '0':
                          nltk.download(resource)
                          os.environ['NLTK_DOWNLOAD_ATTEMPT'] = '1'
@@ -302,21 +346,25 @@ class EduApp(ctk.CTk):
                 self.after(0, lambda: self.show_frame(UploadView))
                 return
 
-            # 2. Analiza (LLM) - PIERWSZA PRÓBA
             LANGUAGE = self.language
             
+            # --- FRAGMENT 1: PODSUMOWANIE (LLM lub FALLBACK LSA) ---
             llm_summary = generate_llm_summary(raw_text, LANGUAGE)
             
             if llm_summary:
-                self.summary_text = llm_summary
+                # Oczyszczamy tekst z czatowych fraz i dodajemy '## Podsumowanie'
+                self.summary_text = clean_llm_summary(llm_summary, LANGUAGE)
             else:
-                # 2.a LOKALNA ANALIZA (SUMY) - FALLBACK JEŚLI LLM ZAWIEDZIE
+                # LOKALNA ANALIZA (SUMY) - FALLBACK JEŚLI LLM ZAWIEDZIE
                 print("LLM zawiódł lub nie jest dostępny. Używam lokalnej metody LSA (SUMY).")
                 
                 SENTENCES_COUNT = 10 
                 sumy_language = 'english' if LANGUAGE == 'english' else 'polish'
 
-                parser = PlaintextParser.from_string(raw_text, Tokenizer(sumy_language))
+                # FALLBACK RÓWNIEŻ UŻYWA OGRANICZONEGO TEKSTU (10k znaków po pełnym zdaniu)
+                fallback_text = get_safe_text_fragment(raw_text, MAX_CHARS_LIMIT)
+                
+                parser = PlaintextParser.from_string(fallback_text, Tokenizer(sumy_language))
                 
                 try:
                     stemmer = Stemmer(sumy_language)
@@ -342,7 +390,7 @@ class EduApp(ctk.CTk):
                 header_text = f"## Podsumowanie - Metoda LSA (Lokalna, {LANGUAGE.upper()})"
                 self.summary_text = f"{header_text}\n\n{final_summary}"
                 
-            # 3. Fiszki (SpaCy)
+            # --- FRAGMENT 2: FISZKI (SpaCy) ---
             self.flashcards_data = generate_cloze_flashcards(raw_text, LANGUAGE)
             
             # Reset gry
@@ -366,7 +414,7 @@ class EduApp(ctk.CTk):
         if not self.summary_text:
             return
         
-        # UŻYWAMY NOWEJ FUNKCJI DO CZYSZCZENIA Z MARKDOWN DLA PLIKU .TXT
+        # UŻYWAMY FUNKCJI DO CZYSZCZENIA Z MARKDOWN DLA PLIKU .TXT
         cleaned_summary_text = cleanup_markdown_for_save(self.summary_text)
 
         full_content = f"*** EDUGENIUS NOTATKA - Język: {self.language.upper()} ***\n\n"
@@ -462,28 +510,36 @@ class MainAppView(ctk.CTkFrame):
         self.tab_flashcards = self.tabview.add("2. Fiszki (Tryb Nauki)")
 
         # Podsumowanie UI
-        # Używamy domyślnej czcionki dla ciała tekstu
-        self.summary_textbox = ctk.CTkTextbox(self.tab_summary, font=self.controller.body_font, wrap="word")
+        # Używamy body_font (który jest normalny, nie bold) aby nie pogrubiać wszystkiego
+        self.summary_textbox = ctk.CTkTextbox(self.tab_summary, font=self.controller.body_font, wrap="word") 
         self.summary_textbox.pack(fill="both", expand=True, padx=10, pady=10)
-        self.save_btn = ctk.CTkButton(self.tab_summary, text="Pobierz pełną notatkę (.txt)", command=self.controller.save_to_txt)
-        self.save_btn.pack(pady=10)
-        self.back_to_upload_btn = ctk.CTkButton(self.tab_summary, text="Powrót do pierwszego widoku", command=lambda: self.controller.show_frame(UploadView))
-        self.back_to_upload_btn.pack(pady=10)
+        
+        # Ramka na przyciski w zakładce Podsumowanie
+        self.summary_btns_frame = ctk.CTkFrame(self.tab_summary, fg_color="transparent")
+        self.summary_btns_frame.pack(pady=10)
+        
+        self.save_btn = ctk.CTkButton(self.summary_btns_frame, text="Pobierz pełną notatkę (.txt)", command=self.controller.save_to_txt)
+        self.save_btn.pack(side="left", padx=10)
+        
+        # JEDEN PRZYCISK POWROTU
+        self.back_to_upload_btn = ctk.CTkButton(self.summary_btns_frame, text="Powrót do wczytywania pliku", command=lambda: self.controller.show_frame(UploadView))
+        self.back_to_upload_btn.pack(side="left", padx=10)
 
         # FISZKI UI
         self.card_frame = ctk.CTkFrame(self.tab_flashcards, fg_color="#1f538d", corner_radius=30, width=600, height=400)
-        self.card_frame.pack(pady=40, padx=40, fill="both", expand=True)
+        self.card_frame.pack(pady=(40, 10), padx=40, fill="both", expand=True)
         self.card_frame.bind("<Button-1>", self.flip_card)
 
         self.card_label = ctk.CTkLabel(self.card_frame, text="Wgraj plik, aby wygenerować fiszki", font=("Roboto", 24), wraplength=500, text_color="white")
         self.card_label.place(relx=0.5, rely=0.5, anchor="center")
         self.card_label.bind("<Button-1>", self.flip_card)
 
-        self.hint_label = ctk.CTkLabel(self.card_frame, text="", font=("Roboto", 12), text_color="gray")
-        self.hint_label.place(relx=0.5, rely=0.9, anchor="center")
+        # Element z informacją o numerze karty (przeniesiony pod ramkę)
+        self.hint_label = ctk.CTkLabel(self.tab_flashcards, text="", font=("Roboto", 14), text_color="white")
+        self.hint_label.pack(pady=(0, 20)) 
 
         self.btns_frame = ctk.CTkFrame(self.tab_flashcards, fg_color="transparent")
-        self.btns_frame.pack(pady=20)
+        self.btns_frame.pack(pady=10)
         self.btn_know = ctk.CTkButton(self.btns_frame, text="Wiem :)", fg_color="green", hover_color="darkgreen", command=lambda: self.answer_card(True))
         self.btn_know.pack(side="left", padx=20)
         self.btn_dont_know = ctk.CTkButton(self.btns_frame, text="Nie wiem :(", fg_color="red", hover_color="darkred", command=lambda: self.answer_card(False))
@@ -492,45 +548,47 @@ class MainAppView(ctk.CTkFrame):
         self.result_label = ctk.CTkLabel(self.tab_flashcards, text="", font=("Roboto", 16))
         self.result_label.pack(pady=10)
 
-        # Przycisk powrotu do pierwszego widoku
-        self.back_btn = ctk.CTkButton(self, text="Powrót do pierwszego widoku", command=lambda: self.controller.show_frame(UploadView))
-        self.back_btn.pack(pady=10)
-
     def update_summary(self, markdown_text):
         """
-        Wstawia tekst do CTkTextbox, usuwając pogrubienia (**) i nagłówki (##),
-        ale zachowując nową linię, aby tekst był bardziej czytelny.
-        
-        Uwaga: CTkTextbox nie obsługuje tagów Tkinter do zmiany czcionek dla fragmentów tekstu.
-        
+        Wstawia tekst do CTkTextbox, usuwając formatowanie Markdown.
         """
         self.summary_textbox.delete("0.0", "end")
-        
-        # 1. Usuń **pogrubienia** -> zostaje sam tekst
-        # 2. Usuń ## nagłówki -> zostaje sam tekst (zmieniamy też na duże litery dla wyróżnienia)
         
         cleaned_for_display = []
         for line in markdown_text.split('\n'):
             line_content = line
             
-            # Usuń ## i zmień na DUŻE LITERY dla nagłówka
-            if line_content.startswith('## '):
-                line_content = line_content[3:].upper()
-            
-            # Usuń **pogrubienia**
+            # 1. Usuń **pogrubienia**
             line_content = re.sub(r'\*\*(.*?)\*\*', r'\1', line_content)
             
-            cleaned_for_display.append(line_content)
+            # 2. Traktowanie nagłówka (##) - Zmieniamy na DUŻE LITERY i dodajemy separator
+            if line_content.startswith('## '):
+                line_content = '\n' + line_content[3:].upper() + '\n' + ('-' * 30)
+            
+            # 3. Usuń resztki formatowania listy (np. myślniki), zostaw numerację i treść
+            # To jest kluczowe, aby lista wyglądała czysto
+            if re.match(r'^\s*\d+\.\s*', line_content):
+                line_content = re.sub(r'^\s*(\d+\.\s*)', r'\1', line_content) # Zostaw numerację
+            else:
+                 line_content = re.sub(r'^(\s*[\-\*]\s*)', '', line_content) # Usuń inne znaczniki listy
+                 
+            line_content = line_content.strip()
+
+            if line_content: # Dodawaj tylko niepuste linie
+                cleaned_for_display.append(line_content)
             
         final_text = "\n".join(cleaned_for_display).strip()
         
+        if not final_text:
+             final_text = "Błąd formatowania: Podsumowanie jest puste."
+             
         self.summary_textbox.insert("0.0", final_text)
 
 
     def load_flashcard(self):
-        # ... (Metoda bez zmian) ...
         if not self.controller.flashcards_data:
             self.card_label.configure(text="Brak fiszek. Wgraj plik, aby wygenerować.")
+            self.hint_label.configure(text="") 
             self.btn_know.configure(state="disabled")
             self.btn_dont_know.configure(state="disabled")
             self.result_label.configure(text="")
@@ -542,31 +600,30 @@ class MainAppView(ctk.CTkFrame):
 
         card = self.controller.flashcards_data[self.controller.current_card_index]
         self.card_label.configure(text=card['question'])
-        self.hint_label.configure(text=f"Karta {self.controller.current_card_index + 1} z {len(self.controller.flashcards_data)} | Kliknij, aby odkryć")
+        self.hint_label.configure(text=f"Karta {self.controller.current_card_index + 1} z {len(self.controller.flashcards_data)} | Kliknij kartę, aby odkryć odpowiedź.")
         self.controller.is_card_flipped = False
+        self.card_frame.configure(fg_color="#1f538d") 
         self.btn_know.configure(state="normal")
         self.btn_dont_know.configure(state="normal")
         self.result_label.configure(text="")
 
     def flip_card(self, event):
-        # ... (Metoda bez zmian) ...
         if not self.controller.flashcards_data:
             return
 
         card = self.controller.flashcards_data[self.controller.current_card_index]
         if not self.controller.is_card_flipped:
             self.card_label.configure(text=card['answer'])
-            self.hint_label.configure(text="Odpowiedź: (Kliknij, aby wrócić do pytania)")
+            self.hint_label.configure(text="Odpowiedź: (Kliknij kartę, aby wrócić do pytania)")
             self.controller.is_card_flipped = True
             self.card_frame.configure(fg_color="gray")
         else:
             self.card_label.configure(text=card['question'])
-            self.hint_label.configure(text="Kliknij, aby odkryć")
+            self.hint_label.configure(text=f"Karta {self.controller.current_card_index + 1} z {len(self.controller.flashcards_data)} | Kliknij kartę, aby odkryć odpowiedź.")
             self.controller.is_card_flipped = False
             self.card_frame.configure(fg_color="#1f538d")
 
     def answer_card(self, knew_it):
-        # ... (Metoda bez zmian) ...
         if self.controller.current_card_index < len(self.controller.flashcards_data):
             self.controller.user_answers.append(knew_it)
             
@@ -599,10 +656,10 @@ class SummaryResultView(ctk.CTkFrame):
         self.score_label = ctk.CTkLabel(self.result_frame, text="", font=("Roboto", 20))
         self.score_label.pack(pady=10)
 
-        self.restart_btn = ctk.CTkButton(self.result_frame, text="Powrót do głównego widoku", command=self.back_to_main)
+        self.restart_btn = ctk.CTkButton(self.result_frame, text="Powrót do trybu nauki", command=self.back_to_main)
         self.restart_btn.pack(pady=30)
 
-        self.upload_btn = ctk.CTkButton(self.result_frame, text="Powrót do pierwszego widoku", command=lambda: self.controller.show_frame(UploadView))
+        self.upload_btn = ctk.CTkButton(self.result_frame, text="Powrót do wczytywania pliku", command=lambda: self.controller.show_frame(UploadView))
         self.upload_btn.pack(pady=10)
         
     def tkraise(self, *args, **kwargs):
