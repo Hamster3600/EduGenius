@@ -1,3 +1,4 @@
+# --- Wymagane dla CustomTkinter (GUI) ---
 customtkinter
 pypdf
 python-docx
@@ -6,3 +7,6 @@ sumy
 nltk
 spacy
 llama-cpp-python
+
+# Wymagane dla zarządzania pakietami (było w Twoim pliku)
+packaging
