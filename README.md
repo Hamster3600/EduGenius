@@ -93,3 +93,8 @@ Uruchom plik `main.py` z konsoli:
 
 ```bash
 python main.py
+```
+
+## Privacy Policy
+
+Politykę Prywatności dla EduGenius znajdziesz pod adresem https://hamster3600.github.io/EduGenius/.
