@@ -8,7 +8,7 @@ BLUE='\033[0;34m'
 NC='\033[0m'
 
 #komunikat o błędzie
-trap 'echo -e "\n${NC}WYNIK: ${RED}BŁĄD${NC}\n===========================================================\n Instalacja przerwana – coś poszło nie tak.\n Spróbuj jeszcze raz lub ręcznie zainstaluj brakujące rzeczy.\n===========================================================\n${NC}"; exit 1' ERR
+trap 'echo -e "\n${NC}WYNIK: ${RED}BŁĄD${NC}\n===========================================================\n Instalacja przerwana - coś poszło nie tak.\n Spróbuj jeszcze raz lub ręcznie zainstaluj brakujące rzeczy.\n===========================================================\n${NC}"; exit 1' ERR
 
 #komunikat powitalny
 echo -e "${BLUE}EduGenius${NC} - Witam w automatycznym installererze${NC}"
@@ -32,6 +32,7 @@ pip3 install --break-system-packages \
     sumy \
     nltk \
     spacy \
+    llama-cpp-python \
     --no-cache-dir
 
 # pobieranie stacy i nltk

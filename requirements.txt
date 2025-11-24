@@ -1,6 +1,8 @@
 customtkinter
-pdfplumber
+pypdf
 python-docx
-odfpy
-packaging
+odfpy==1.4.1
+sumy
+nltk
+spacy
 llama-cpp-python
