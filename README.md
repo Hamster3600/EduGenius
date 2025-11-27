@@ -84,7 +84,7 @@ Ten krok jest kluczowy dla uruchomienia AI. Wybierz odpowiednią komendę dla Tw
   
   **2.2.2 Jeśli jest błąd ładowania LLM / brak AVX2:**
   
-  Jeśli po uruchomieniu aplikacji zobaczysz błąd że LLM nie działa, to Twoje CPU nie wspiera AVX2. Przez co nie możesz korzystać z AI do podsumowania oraz fiszek.
+  Jeśli po uruchomieniu aplikacji zobaczysz błąd że LLM nie działa, to Twoje CPU nie wspiera AVX2. Przez co nie możesz korzystać z AI, więc aplikacja skorzysta z fallback'u.
   
 #### Krok 2.3: Pobieranie Modeli Językowych
 
@@ -106,11 +106,8 @@ Pobierz plik modelu AI do głównego katalogu projektu. Musi on mieć nazwę: [`
 
 ```
 bash
-# komenda dla Windows/Linux/macOS
 curl -L -o qwen2.5-1.5b-instruct-q4_k_m.gguf https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q4_k_m.gguf
 ```
-
-Te skrypty automatycznie zainstalują wszystkie biblioteki, modele językowe i pobierą model LLM. Jeśli instalacja automatyczna się nie powiedzie, skorzystaj z instalacji ręcznej powyżej.
 
 ## Uruchomienie Aplikacji
 
