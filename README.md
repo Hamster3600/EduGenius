@@ -4,6 +4,18 @@
 
 ![widok_główny](https://github.com/Hamster3600/EduGenius/blob/main/img/main_view.png)
 
+## Podsumowanie
+
+![podsumowanie](https://github.com/Hamster3600/EduGenius/blob/main/img/summary_view.png)
+
+## Fiszki
+![fiszki_pytanie](https://github.com/Hamster3600/EduGenius/blob/main/img/flashcard_1.png)
+![fiszki_odpowiedź](https://github.com/Hamster3600/EduGenius/blob/main/img/flashcard_2.png)
+
+## Wynik fiszek
+
+![wynik_sesji_nauki](https://github.com/Hamster3600/EduGenius/blob/main/img/end_of_study_mode.png)
+
 ## Wyjaśnienie Projektu
 
 EduGenius to w pełni lokalna aplikacja desktopowa zrobiona za pomocą biblioteki CustomTkinter do automatycznego generowania notatek i interaktywnych fiszek z dokumentów. Wykorzystuje lokalny model LLM za pomocą llama-cpp-python oraz zaawansowane biblioteki SpaCy i Sumy do skodensowania i porządkowania wiedzy.
