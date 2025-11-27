@@ -29,6 +29,7 @@ pip3 install --break-system-packages \
     pypdf \
     python-docx \
     "odfpy==1.4.1" \
+    tk \
     sumy \
     nltk \
     spacy \
