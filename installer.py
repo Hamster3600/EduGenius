@@ -6,7 +6,7 @@ from typing import List
 
 PACKAGES: List[str] = [
     "customtkinter", "pypdf", "python-docx", "odfpy==1.4.1", 
-    "sumy", "nltk", "spacy", "packaging", 
+    "sumy", "nltk", "spacy", "packaging", "tk",
     "llama-cpp-python", "tqdm", "requests"
 ]
 SPACY_MODELS: List[str] = ['pl_core_news_sm', 'en_core_web_sm']
@@ -14,18 +14,16 @@ GGUF_URL: str = "https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/
 GGUF_FILENAME: str = "qwen2.5-1.5b-instruct-q4_k_m.gguf"
 
 def run_pip(args: List[str], step_name: str) -> bool:
-    """Uruchamia Pip w subprocessie."""
     try:
         print(f"\n--- Rozpoczynam: {step_name} ---")
-        subprocess.run([sys.executable, "-m", "pip"] + args, check=True, stdout=sys.stdout, stderr=sys.stderr)
+        full_args = [sys.executable, "-m", "pip"] + args + ["--break-system-packages"]
+        subprocess.run(full_args, check=True)
         return True
     except subprocess.CalledProcessError as e:
-        print(f"\n[BLAD KRYTYCZNY] {step_name} nie powiodl sie. Szczegoly ponizej.", file=sys.stderr)
-        print(e, file=sys.stderr)
+        print(f"\n[BLAD KRYTYCZNY] {step_name} nie powiodl sie.", file=sys.stderr)
         return False
 
 def download_file(url: str, filename: str):
-    """Pobiera plik z URL, pokazując postęp."""
     try:
         from tqdm import tqdm
         print(f"Pobieram model LLM ({filename}) [~1 GB]...")
@@ -44,23 +42,24 @@ def download_file(url: str, filename: str):
         print("Model LLM pobrany pomyslnie.")
         return True
     except Exception as e:
-        print(f"\n[BLAD KRYTYCZNY] Nie udalo sie pobrac modelu LLM. Sprawdz polaczenie internetowe.", file=sys.stderr)
-        print(e, file=sys.stderr)
+        print(f"\n[BLAD KRYTYCZNY] Nie udalo sie pobrac modelu LLM.", file=sys.stderr)
         return False
 
 def main():
-    if not run_pip(["install", "--upgrade", "pip"], "Aktualizacja PIP"): return 1
+    if not run_pip(["install", "--upgrade", "pip"], "Aktualizacja PIP"): 
+        return 1
     
     print("\n[2/4] Instalacja glownych bibliotek i silnika llama-cpp-python...")
     pip_args = ["install"] + PACKAGES + ["--prefer-binary", "--extra-index-url=https://jllllll.github.io/llama-cpp-python-cuBLAS-wheels/AVX2/cpu"]
-    if not run_pip(pip_args, "Instalacja bibliotek"): return 1
+    if not run_pip(pip_args, "Instalacja bibliotek"): 
+        return 1
     
     print("\n[3/4] Pobieram modele jezykowe SpaCy...")
     for model in SPACY_MODELS:
         print(f"Pobieram model SpaCy: {model}...")
-        try:
-            subprocess.run([sys.executable, "-m", "spacy", "download", model, "-q"], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        except subprocess.CalledProcessError:
+        result = subprocess.run([sys.executable, "-m", "pip", "install", model, "--break-system-packages"], 
+                              capture_output=True, text=True)
+        if result.returncode != 0:
             print(f"BŁĄD podczas pobierania modelu SpaCy: {model}.", file=sys.stderr)
             return 1
 
@@ -87,4 +86,4 @@ def main():
     return 0
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(main())
