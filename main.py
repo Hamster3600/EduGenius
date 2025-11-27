@@ -32,7 +32,7 @@ L10N = {
     "polish": {
         "app_title": "EduGenius - Lokalny Asystent Nauki",
         "upload_header": "EduGenius - Lokalny Asystent Nauki",
-        "lang_select": "Wybierz język pliku:",
+        "lang_select": "Wybierz język:",
         "file_select_btn": "Wybierz plik do analizy\n(.txt, .pdf, .docx, .odt)",
         "loading_text": "Analiza i generowanie notatek...",
         "loading_phrases": [
@@ -48,12 +48,12 @@ L10N = {
             "Generuję fiszki metodą Cloze Deletion...",
             "Filtruję mniej istotne dane...",
             "Optymalizuję notatki do nauki...",
-            "Uruchamiam proces NLP (Natural Language Processing)...",
+            "Uruchamiam proces NLP...",
             "Wgrywam dane do pamięci podręcznej...",
             "Przygotowuję interfejs użytkownika...",
             "Kończę przetwarzanie... Ostatnie szlify...",
             "Kalibruję algorytmy...",
-            "Analizuję czasowniki i rzeczowniki (SpaCy)...",
+            "Analizuję czasowniki i rzeczowniki...",
             "Sortuję fiszki według priorytetu...",
             "Czekam na odpowiedź z lokalnego modelu...",
             "Porządkuję dane wyjściowe...",
@@ -84,12 +84,14 @@ L10N = {
         "flashcards_header_txt": "FISZKI",
         "no_flashcards_txt": "Brak wygenerowanych fiszek.",
         "question_txt": "Pytanie",
-        "answer_txt": "Odpowiedź"
+        "answer_txt": "Odpowiedź",
+        "model_missing_title": "Brak pliku modelu LLM",
+        "model_missing_msg": "Nie znaleziono pliku modelu:\nqwen2.5-1.5b-instruct-q4_k_m.gguf\n\nPodsumowania będą generowane metodą fallback."
     },
     "english": {
         "app_title": "EduGenius - Local Study Assistant",
         "upload_header": "EduGenius - Local Study Assistant",
-        "lang_select": "Select file language:",
+        "lang_select": "Select language:",
         "file_select_btn": "Select file for analysis\n(.txt, .pdf, .docx, .odt)",
         "loading_text": "Analyzing and generating notes...",
         "loading_phrases": [
@@ -105,12 +107,12 @@ L10N = {
             "Generating flashcards using Cloze Deletion...",
             "Filtering less essential data...",
             "Optimizing notes for study...",
-            "Running NLP (Natural Language Processing) process...",
+            "Running NLP process...",
             "Loading data to cache...",
             "Preparing user interface...",
             "Finalizing processing... Last touches...",
             "Calibrating algorithms...",
-            "Analyzing verbs and nouns (SpaCy)...",
+            "Analyzing verbs and nouns...",
             "Sorting flashcards by priority...",
             "Waiting for response from the local model...",
             "Arranging output data...",
@@ -141,13 +143,16 @@ L10N = {
         "flashcards_header_txt": "FLASHCARDS",
         "no_flashcards_txt": "No flashcards generated.",
         "question_txt": "Question",
-        "answer_txt": "Answer"
+        "answer_txt": "Answer",
+        "model_missing_title": "LLM model file missing",
+        "model_missing_msg": "Model file not found:\nqwen2.5-1.5b-instruct-q4_k_m.gguf\n\nSummaries will be generated using fallback method."
     }
 }
 
 
 MODEL_PATH = "qwen2.5-1.5b-instruct-q4_k_m.gguf" 
 _llama_model = None
+_model_warning_shown = False
 
 SPACY_MODELS = {
     "polish": "pl_core_news_sm",
@@ -159,9 +164,30 @@ MAX_CHARS_LIMIT = 10000
 MAX_FLASHCARDS = 50 
 
 
+def check_model_and_warn():
+    global _model_warning_shown
+    if _model_warning_shown:
+        return
+    if not os.path.exists(MODEL_PATH):
+        lang = "polish"
+        try:
+            app = ctk.CTk()
+            lang = app.language if hasattr(app, "language") else "polish"
+            app.destroy()
+        except:
+            pass
+        texts = L10N[lang]
+        messagebox.showwarning(
+            texts["model_missing_title"],
+            texts["model_missing_msg"]
+        )
+        _model_warning_shown = True
+
+
 def load_llm():
     global _llama_model
     if _llama_model is None:
+        check_model_and_warn()
         if not os.path.exists(MODEL_PATH):
             return None 
 
@@ -362,6 +388,8 @@ class EduApp(ctk.CTk):
     def __init__(self):
         super().__init__()
 
+        check_model_and_warn()
+
         self.flashcards_data = []
         self.summary_text = "" 
         self.current_card_index = 0
@@ -413,7 +441,6 @@ class EduApp(ctk.CTk):
             if hasattr(frame, 'update_language'):
                 frame.update_language()
                 
-        # jeśli byliśmy na summaryresultview to po zmianie języka wracamy do mainappview
         current_frame_class = None
         for cls, frm in self.frames.items():
             if frm.winfo_ismapped():
@@ -790,7 +817,6 @@ class MainAppView(ctk.CTkFrame):
         self.btn_know.configure(text=texts["btn_know"])
         self.btn_dont_know.configure(text=texts["btn_dont_know"])
         
-        # odświeżamy tylko tekst na aktualnej karcie, nie ruszamy indeksu
         if self.controller.flashcards_data and self.controller.current_card_index < len(self.controller.flashcards_data):
             card = self.controller.flashcards_data[self.controller.current_card_index]
             if self.controller.is_card_flipped:
@@ -847,7 +873,6 @@ class MainAppView(ctk.CTkFrame):
         lang = self.controller.language
         texts = L10N[lang]
         
-        # tylko jak naprawdę skończyły się karty to idziemy do wyniku
         if self.controller.current_card_index >= len(self.controller.flashcards_data) and self.controller.flashcards_data:
             self.controller.show_frame(SummaryResultView)
             return
