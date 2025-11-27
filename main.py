@@ -403,14 +403,25 @@ class EduApp(ctk.CTk):
         self.show_frame(UploadView)
 
     def set_language(self, lang):
-        if self.language != lang:
-            self.language = lang
-            self.title(L10N[self.language]["app_title"])
-            
-            for frame in self.frames.values():
-                if hasattr(frame, 'update_language'):
-                    frame.update_language()
+        if self.language == lang:
+            return
+        old_lang = self.language
+        self.language = lang
+        self.title(L10N[self.language]["app_title"])
         
+        for frame in self.frames.values():
+            if hasattr(frame, 'update_language'):
+                frame.update_language()
+                
+        # jeśli byliśmy na summaryresultview to po zmianie języka wracamy do mainappview
+        current_frame_class = None
+        for cls, frm in self.frames.items():
+            if frm.winfo_ismapped():
+                current_frame_class = cls
+                break
+        if current_frame_class == SummaryResultView:
+            self.show_frame(MainAppView)
+
     def show_frame(self, container_class):
         old_frame = None
         for frame in self.frames.values():
@@ -779,9 +790,24 @@ class MainAppView(ctk.CTkFrame):
         self.btn_know.configure(text=texts["btn_know"])
         self.btn_dont_know.configure(text=texts["btn_dont_know"])
         
-        if not is_initial_call:
-            self.load_flashcard(animate=False)
-
+        # odświeżamy tylko tekst na aktualnej karcie, nie ruszamy indeksu
+        if self.controller.flashcards_data and self.controller.current_card_index < len(self.controller.flashcards_data):
+            card = self.controller.flashcards_data[self.controller.current_card_index]
+            if self.controller.is_card_flipped:
+                self.card_label.configure(text=card["answer"])
+                self.hint_label.configure(text=texts["hint_flipped"].format(
+                    current=self.controller.current_card_index + 1,
+                    total=len(self.controller.flashcards_data)
+                ))
+            else:
+                self.card_label.configure(text=card["question"])
+                self.hint_label.configure(text=texts["hint_click_to_flip"].format(
+                    current=self.controller.current_card_index + 1,
+                    total=len(self.controller.flashcards_data)
+                ))
+        elif not self.controller.flashcards_data:
+            self.card_label.configure(text=texts["flashcard_empty"])
+            self.hint_label.configure(text="")
 
     def update_summary(self, markdown_text):
         self.summary_textbox.delete("0.0", "end")
@@ -821,7 +847,8 @@ class MainAppView(ctk.CTkFrame):
         lang = self.controller.language
         texts = L10N[lang]
         
-        if self.controller.current_card_index >= len(self.controller.flashcards_data):
+        # tylko jak naprawdę skończyły się karty to idziemy do wyniku
+        if self.controller.current_card_index >= len(self.controller.flashcards_data) and self.controller.flashcards_data:
             self.controller.show_frame(SummaryResultView)
             return
             
@@ -905,6 +932,9 @@ class MainAppView(ctk.CTkFrame):
     def flip_card(self, event):
         if not self.controller.flashcards_data:
             return
+            
+        if self.controller.current_card_index >= len(self.controller.flashcards_data):
+            return
 
         if self.card_fade_job:
             self.controller.after_cancel(self.card_fade_job)
@@ -916,7 +946,6 @@ class MainAppView(ctk.CTkFrame):
         
         if not self.controller.is_card_flipped:
             self.card_label.configure(text=card['answer'], text_color="white")
-            self.hint_label.configure(text=texts["hint_flipped"])
             self.hint_label.configure(text=texts["hint_flipped"].format(
                 current=self.controller.current_card_index + 1,
                 total=len(self.controller.flashcards_data)
@@ -1001,7 +1030,7 @@ class SummaryResultView(ctk.CTkFrame):
         lang = self.controller.language
         texts = L10N[lang]
         total = len(self.controller.user_answers)
-        known = sum(self.controller.user_answers)
+        known = sum(1 for x in self.controller.user_answers if x)
         
         if total == 0:
             self.score_label.configure(text=texts["result_no_answers"])
