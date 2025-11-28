@@ -15,7 +15,7 @@ echo -e "${BLUE}EduGenius${NC} - Witam w automatycznym installererze${NC}"
 echo -e "${NC}===========================================================${NC}"
 
 #sprawdzenie sudo
-if [[ "$UID" -eq 0 ]]; then
+if [[ ! "$UID" -eq 0 ]]; then
     echo -e "${RED}BŁĄD: ${NC}Nie odpalasz za pomocą sudo lub jako root ${NC}"
     echo -e "${NC}\"\$ sudo ./installer.sh\"lub \"\# ./installer.sh\"${NC}"
     exit 1
