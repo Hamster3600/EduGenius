@@ -14,6 +14,27 @@ trap 'echo -e "\n${NC}WYNIK: ${RED}BŁĄD${NC}\n================================
 echo -e "${BLUE}EduGenius${NC} - Witam w automatycznym installererze${NC}"
 echo -e "${NC}===========================================================${NC}"
 
+#sprawdzenie sudo
+if [[ "$UID" -eq 0 ]]; then
+    echo -e "${RED}BŁĄD: ${NC}Nie odpalasz za pomocą sudo lub jako root ${NC}"
+    echo -e "${NC}\"\$ sudo ./installer.sh\"lub \"\# ./installer.sh\"${NC}"
+    exit 1
+fi
+
+#sprawdzenie pythona
+if ! which python3 &> /dev/null; then
+    echo -e "${RED}BŁĄD: ${NC}Python nie jest pobrany.${NC}"
+    echo -e "${NC}By pobrać:\"\$ sudo apt install python3\"${NC}"
+    exit 1
+fi
+
+#sprawdzenie pipa
+if ! which pip3 &> /dev/null; then
+    echo -e "${RED}BŁĄD: ${NC}Pip nie jest pobrany.${NC}"
+    echo -e "${NC}By pobrać:\"\$ sudo apt install python3-pip\"${NC}"
+    exit 1
+fi
+
 #sprawdzenie dir
 if [[ ! -f "main.py" ]]; then
     echo -e "${RED}BŁĄD: ${NC}Nie ma pliku main.py w tym folderze!${NC}"
@@ -24,7 +45,7 @@ fi
 #pobieranie bibliotek
 echo -e "${YELLOW}Instaluję biblioteki pythona...${NC}"
 pip3 install --upgrade pip --break-system-packages 
-pip3 install --break-system-packages \
+pip3 install --break-system-packages  --allow-external \
     customtkinter \
     pypdf \
     python-docx \
@@ -35,6 +56,8 @@ pip3 install --break-system-packages \
     spacy \
     llama-cpp-python \
     --no-cache-dir
+#pobieranie tk przez apt jeżeli pip coś zwali na wszelki wypdadek 
+apt install python3-tk
 
 # pobieranie stacy i nltk
 echo -e "${YELLOW}Pobieram modele językowe...${NC}"
