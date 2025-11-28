@@ -30,7 +30,7 @@ Dla szybkiej instalacji użyj gotowych skryptów instalacyjnych:
   ```
   bash
   chmod +x installer.sh
-  ./installer.sh
+  sudo ./installer.sh
   ```
 
 ## Instalacja Ręczna
