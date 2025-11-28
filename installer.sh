@@ -45,7 +45,7 @@ fi
 #pobieranie bibliotek
 echo -e "${YELLOW}Instaluję biblioteki pythona...${NC}"
 pip3 install --upgrade pip --break-system-packages 
-pip3 install --break-system-packages  --allow-external \
+pip3 install --break-system-packages  --allow-all-external \
     customtkinter \
     pypdf \
     python-docx \
