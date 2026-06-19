@@ -4,6 +4,12 @@ import os
 import urllib.request
 from typing import List
 
+SHORT_TEMP = "C:\\T"
+if not os.path.exists(SHORT_TEMP):
+    os.makedirs(SHORT_TEMP)
+os.environ['TEMP'] = SHORT_TEMP
+os.environ['TMP'] = SHORT_TEMP
+
 PACKAGES: List[str] = [
     "customtkinter", "pypdf", "python-docx", "odfpy==1.4.1", 
     "sumy", "nltk", "spacy", "packaging", "tk",
@@ -57,10 +63,12 @@ def main():
     print("\n[3/4] Pobieram modele jezykowe SpaCy...")
     for model in SPACY_MODELS:
         print(f"Pobieram model SpaCy: {model}...")
-        result = subprocess.run([sys.executable, "-m", "pip", "install", model, "--break-system-packages"], 
+        result = subprocess.run([sys.executable, "-m", "spacy", "download", model], 
                               capture_output=True, text=True)
         if result.returncode != 0:
             print(f"BŁĄD podczas pobierania modelu SpaCy: {model}.", file=sys.stderr)
+            print("Szczegóły błędu:", file=sys.stderr)
+            print(result.stderr, file=sys.stderr)
             return 1
 
     print("\n[3/4] Pobieram pakiety NLTK...")
@@ -86,4 +94,4 @@ def main():
     return 0
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(main())
